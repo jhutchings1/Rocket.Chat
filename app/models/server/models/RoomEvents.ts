@@ -122,6 +122,27 @@ class RoomEventsModel extends EventsModel {
 		return super.createEvent(src, getContextQuery(roomId), stub);
 	}
 
+	public async createPruneMessagesEvent(roomId: string): Promise<{ count: number }> {
+		const { result }: any = await this.model.rawCollection().updateMany({
+			rid: { $eq: roomId },
+			t: { $eq: EventTypeDescriptor.MESSAGE },
+			_deletedAt: { $exists: false },
+		}, {
+			$set: {
+				d: { msg: '' },
+			},
+			$currentDate: { _deletedAt: true },
+		});
+
+		console.log('createPruneMessagesEvent eventMessages', result);
+
+		console.log('createPruneMessagesEvent result nModified', typeof result.nModified, result.nModified);
+
+		return {
+			count: result.nModified,
+		};
+	}
+
 	// async createAddUserEvent(src, roomId, user, subscription, domainsAfterAdd) {
 	// 	return super.createEvent(src, getContextQuery(roomId), eventTypes.ROOM_ADD_USER, { roomId, user, subscription, domainsAfterAdd });
 	// }
