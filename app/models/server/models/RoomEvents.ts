@@ -129,8 +129,6 @@ class RoomEventsModel extends EventsModel {
 			...options,
 		}).toArray();
 
-		console.log('getMessagesToPrune result', result);
-
 		return result;
 	}
 

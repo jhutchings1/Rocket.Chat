@@ -9,6 +9,7 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 	const gt = inclusive ? '$gte' : '$gt';
 	const lt = inclusive ? '$lte' : '$lt';
 
+	// TODO: check if date filter is working
 	const ts = { [gt]: oldest, [lt]: latest };
 
 	const text = `_${ TAPi18n.__('File_removed_by_prune') }_`;
@@ -49,11 +50,23 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 	}
 
 	if (!ignoreDiscussion) {
-		Messages.findDiscussionByRoomIdPinnedTimestampAndUsers(rid, excludePinned, ts, fromUsers, { fields: { drid: 1 }, ...limit && { limit } }).fetch()
-			.forEach((payload) => {
-				const { drid } = payload;
-				deleteRoom(drid);
-			});
+		const discussionEvents = await RoomEvents.getMessagesToPrune(rid, {
+			ts,
+			'd.drid': { $exists: 1 },
+		});
+		console.log('function cleanRoomHistory discussionEvents', discussionEvents);
+		discussionEvents.forEach((discussion) => {
+			const { d = {} } = discussion;
+			const { drid = '' } = d;
+
+			deleteRoom(drid);
+		});
+
+		// Messages.findDiscussionByRoomIdPinnedTimestampAndUsers(rid, excludePinned, ts, fromUsers, { fields: { drid: 1 }, ...limit && { limit } }).fetch()
+		// 	.forEach((payload) => {
+		// 		const { drid } = payload;
+		// 		deleteRoom(drid);
+		// 	});
 	}
 
 	const result = await RoomEvents.createPruneMessagesEvent({
