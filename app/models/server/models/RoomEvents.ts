@@ -122,14 +122,33 @@ class RoomEventsModel extends EventsModel {
 		return super.createEvent(src, getContextQuery(roomId), stub);
 	}
 
-	public async createPruneMessagesEvent(roomId: string): Promise<{ count: number }> {
+	public async getMessagesToPrune(roomId: string, options: any): Promise<Array<IEvent<IEDataMessage>>> {
+		const result: Array<IEvent<IEDataMessage>> = await this.model.rawCollection().find({ // TODO: put the IEvent interface here
+			rid: { $eq: roomId },
+			t: { $eq: EventTypeDescriptor.MESSAGE },
+			...options,
+		}).toArray();
+
+		console.log('getMessagesToPrune result', result);
+
+		return result;
+	}
+
+	public async createPruneMessagesEvent({
+		roomId,
+		options,
+	}: {
+		roomId: string;
+		options: any;
+	}): Promise<{ count: number }> {
 		const { result }: any = await this.model.rawCollection().updateMany({
 			rid: { $eq: roomId },
 			t: { $eq: EventTypeDescriptor.MESSAGE },
 			_deletedAt: { $exists: false },
+			...options,
 		}, {
 			$set: {
-				d: { msg: '' },
+				d: { msg: '' }, // TODO: this is removing the other fields as well, check how to change only msg
 			},
 			$currentDate: { _deletedAt: true },
 		});

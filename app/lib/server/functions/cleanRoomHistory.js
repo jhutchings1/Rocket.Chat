@@ -14,21 +14,36 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 	const text = `_${ TAPi18n.__('File_removed_by_prune') }_`;
 
 	let fileCount = 0;
-	Messages.findFilesByRoomIdPinnedTimestampAndUsers(
-		rid,
-		excludePinned,
-		ignoreDiscussion,
+	// const attachmentMessages = await Messages.findFilesByRoomIdPinnedTimestampAndUsers(
+	// 	rid,
+	// 	excludePinned,
+	// 	ignoreDiscussion,
+	// 	ts,
+	// 	fromUsers,
+	// 	{ fields: { 'file._id': 1, pinned: 1 }, limit },
+	// );
+
+	const attachmentEventMessages = await RoomEvents.getMessagesToPrune(rid, {
 		ts,
-		fromUsers,
-		{ fields: { 'file._id': 1, pinned: 1 }, limit },
-	).forEach((document) => {
-		console.log('function cleanRoomHistory document', typeof document, document);
-		FileUpload.getStore('Uploads').deleteById(document._id);
+		'd.file._id': { $exists: 1 },
+	});
+
+	attachmentEventMessages.forEach((item) => {
+		const { d = {} } = item;
+		const { file = {} } = d;
+
+		FileUpload.getStore('Uploads').deleteById(file._id);
 		fileCount++;
 		if (filesOnly) {
-			Messages.update({ _id: document._id }, { $unset: { file: 1 }, $set: { attachments: [{ color: '#FD745E', text }] } });
+			RoomEvents.update({
+				_id: item._id,
+			}, {
+				$unset: { 'd.file': 1 },
+				$set: { 'd.attachments': [{ color: '#FD745E', text }] },
+			});
 		}
 	});
+
 	if (filesOnly) {
 		return fileCount;
 	}
@@ -41,7 +56,9 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 			});
 	}
 
-	const result = await RoomEvents.createPruneMessagesEvent(rid);
+	const result = await RoomEvents.createPruneMessagesEvent({
+		roomId: rid,
+	});
 
 	// clean up this and its method at Messages model since it's not used anymore
 	// const count = Messages.removeByIdPinnedTimestampLimitAndUsers(rid, excludePinned, ignoreDiscussion, ts, limit, fromUsers);
