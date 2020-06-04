@@ -28,6 +28,7 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 		ts,
 		'd.file._id': { $exists: 1 },
 	});
+	console.log('function cleanRoomHistory fromUsers', fromUsers);
 
 	attachmentEventMessages.forEach((item) => {
 		const { d = {} } = item;
@@ -59,6 +60,7 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 			const { d = {} } = discussion;
 			const { drid = '' } = d;
 
+			// TODO: update the discussions messages to be removed from channel as well
 			deleteRoom(drid);
 		});
 
@@ -71,6 +73,8 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 
 	const result = await RoomEvents.createPruneMessagesEvent({
 		roomId: rid,
+		fromUsers,
+		ignorePinned: excludePinned,
 	});
 
 	// clean up this and its method at Messages model since it's not used anymore

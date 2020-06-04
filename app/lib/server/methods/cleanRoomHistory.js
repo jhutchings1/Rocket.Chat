@@ -26,7 +26,6 @@ Meteor.methods({
 		}
 
 		const response = cleanRoomHistory({ rid: roomId, latest, oldest, inclusive, limit, excludePinned, ignoreDiscussion, filesOnly, fromUsers });
-		console.log('method cleanRoomHistory response', response);
 		return response;
 	},
 });

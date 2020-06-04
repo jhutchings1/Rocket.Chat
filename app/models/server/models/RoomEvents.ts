@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { IEDataRoom } from '../../../events/definitions/data/IEDataRoom';
-import { IEDataMessage } from '../../../events/definitions/data/IEDataMessage';
+import { IEDataMessage, EventMessageTypeDescriptor } from '../../../events/definitions/data/IEDataMessage';
 import { EDataDefinition, EventTypeDescriptor, IEData, IEvent } from '../../../events/definitions/IEvent';
 import { IRoom } from '../../../events/definitions/IRoom';
 import { getLocalSrc } from '../../../events/server/lib/getLocalSrc';
@@ -134,26 +134,46 @@ class RoomEventsModel extends EventsModel {
 
 	public async createPruneMessagesEvent({
 		roomId,
-		options,
+		fromUsers = [],
+		ignorePinned,
+		options = {},
 	}: {
 		roomId: string;
+		fromUsers: Array<string>;
+		ignorePinned: boolean;
 		options: any;
 	}): Promise<{ count: number }> {
+		console.log('RoomEvents createPruneMessagesEvent ignorePinned', ignorePinned);
+
+		const dataType = [EventMessageTypeDescriptor.MESSAGE];
+		if (!ignorePinned) {
+			dataType.push(EventMessageTypeDescriptor.MESSAGE_PINNED);
+		} else {
+			// just when it is for specifically ignore it sets to get only messages where this field doesn't exist
+			options['d.pinned'] = { $exists: false };
+		}
+
+		console.log('RoomEvents datatype', dataType);
+
 		const { result }: any = await this.model.rawCollection().updateMany({
 			rid: { $eq: roomId },
 			t: { $eq: EventTypeDescriptor.MESSAGE },
+			'd.msg': { $exists: 1 },
+			'd.drid': { $exists: 0 },
+			'd.u.username': fromUsers.length ? { $in: fromUsers } : { $exists: 1 },
+			'd.t': { $in: dataType },
 			_deletedAt: { $exists: false },
 			...options,
 		}, {
 			$set: {
-				d: { msg: '' }, // TODO: this is removing the other fields as well, check how to change only msg
+				'd.msg': '', // TODO: this is removing the other fields as well, check how to change only msg
 			},
 			$currentDate: { _deletedAt: true },
 		});
 
 		console.log('createPruneMessagesEvent eventMessages', result);
 
-		console.log('createPruneMessagesEvent result nModified', typeof result.nModified, result.nModified);
+		// console.log('createPruneMessagesEvent result nModified', typeof result.nModified, result.nModified);
 
 		return {
 			count: result.nModified,
