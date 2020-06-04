@@ -143,8 +143,6 @@ class RoomEventsModel extends EventsModel {
 		ignorePinned: boolean;
 		options: any;
 	}): Promise<{ count: number }> {
-		console.log('RoomEvents createPruneMessagesEvent ignorePinned', ignorePinned);
-
 		const dataType = [EventMessageTypeDescriptor.MESSAGE];
 		if (!ignorePinned) {
 			dataType.push(EventMessageTypeDescriptor.MESSAGE_PINNED);
@@ -152,8 +150,6 @@ class RoomEventsModel extends EventsModel {
 			// just when it is for specifically ignore it sets to get only messages where this field doesn't exist
 			options['d.pinned'] = { $exists: false };
 		}
-
-		console.log('RoomEvents datatype', dataType);
 
 		const { result }: any = await this.model.rawCollection().updateMany({
 			rid: { $eq: roomId },

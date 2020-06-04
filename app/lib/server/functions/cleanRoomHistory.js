@@ -2,10 +2,11 @@ import { TAPi18n } from 'meteor/rocketchat:tap-i18n';
 
 import { deleteRoom } from './deleteRoom';
 import { FileUpload } from '../../../file-upload';
-import { Messages, Rooms, RoomEvents } from '../../../models';
+import { Rooms, RoomEvents } from '../../../models';
 import { Notifications } from '../../../notifications';
 
 export const cleanRoomHistory = async function({ rid, latest = new Date(), oldest = new Date('0001-01-01T00:00:00Z'), inclusive = true, limit = 0, excludePinned = true, ignoreDiscussion = true, filesOnly = false, fromUsers = [] }) {
+	console.log('cleanRoomHistory limit', limit);
 	const gt = inclusive ? '$gte' : '$gt';
 	const lt = inclusive ? '$lte' : '$lt';
 
@@ -28,7 +29,6 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 		ts,
 		'd.file._id': { $exists: 1 },
 	});
-	console.log('function cleanRoomHistory fromUsers', fromUsers);
 
 	attachmentEventMessages.forEach((item) => {
 		const { d = {} } = item;
@@ -53,15 +53,21 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 	if (!ignoreDiscussion) {
 		const discussionEvents = await RoomEvents.getMessagesToPrune(rid, {
 			ts,
-			'd.drid': { $exists: 1 },
+			'd.drid': { $exists: true },
+			_deletedAt: { $exists: false },
 		});
-		console.log('function cleanRoomHistory discussionEvents', discussionEvents);
 		discussionEvents.forEach((discussion) => {
 			const { d = {} } = discussion;
 			const { drid = '' } = d;
 
-			// TODO: update the discussions messages to be removed from channel as well
+			RoomEvents.update({
+				_id: discussion._id,
+			}, {
+				$currentDate: { _deletedAt: true },
+			});
+
 			deleteRoom(drid);
+			fileCount += 1;
 		});
 
 		// Messages.findDiscussionByRoomIdPinnedTimestampAndUsers(rid, excludePinned, ts, fromUsers, { fields: { drid: 1 }, ...limit && { limit } }).fetch()
@@ -89,5 +95,5 @@ export const cleanRoomHistory = async function({ rid, latest = new Date(), oldes
 			users: fromUsers,
 		});
 	}
-	return result.count;
+	return result.count + fileCount;
 };
